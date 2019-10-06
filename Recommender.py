@@ -29,11 +29,26 @@ class GameDB:
             return mycursor
 
     # Gets all the ratings for a given list of game ids. e.g.     gameids = [152]
-    def get_game_ratings(self, gameids):
+    def get_ratings_by_game(self, gameids):
         for gameid in gameids:
             sql = "SELECT game.name, rating.user, rating.rating FROM game, rating WHERE game.game = rating.game and game.game = " + str(gameid);
             return self.execute_sql(sql)
 
+    def get_ratings_by_user(self, user_ids):
+        preferences = {}
+        user_str = ','.join(map(str, user_ids))
+        sql = "SELECT game, rating FROM rating WHERE user in (" + user_str + ")"
+        game_ratings = self.execute_sql(sql)
+        return
+
+        for user in user_ids:
+            count = 0
+            for i in range(len(game_ratings)):
+                count += 1
+                if count % 1000 == 0:
+                    print(count)
+                preferences[user] = {}
+                preferences[user][game_ratings[i][0]] = int(game_ratings[i][1])
 
     # Gets the top games that have at least some number of votes (required_votes) and returns them ordered by weighted rating
     # Numpy array returned is in this column order: Game ID, Game Name, Rating, # Votes, Weighted Rating
@@ -44,7 +59,6 @@ class GameDB:
 
         sql = "SELECT game.game, game.name, AVG(rating.rating) as rating, count(rating.rating) as votes FROM game, rating WHERE game.game = rating.game GROUP BY game.game HAVING votes > "+str(required_votes)+" ORDER BY rating DESC"
         result = self.execute_sql(sql)
-        print(result)
         game_ratings = np.array(result, dtype=object)#dtype=([('id', int), ('name', '<U256'), ('raw_rating', float), ('votes', int)]))
 
         # (v ÷ (v+m)) × R + (m ÷ (v+m)) × C
@@ -52,7 +66,7 @@ class GameDB:
         game_ratings = np.hstack((game_ratings, weighted_rating))
         # Sort by weighted rating. Python, lamely, can't do a sort in numpy easily. But this trick worked: https://stackoverflow.com/questions/16486252/is-it-possible-to-use-argsort-in-descending-order
         game_ratings = game_ratings[(-game_ratings[:, 4]).argsort()]
-        return game_ratings
+        return game_ratings[:,0].tolist(), game_ratings[:,0:2].tolist()
 
 
     def get_all_games(self):
@@ -60,13 +74,26 @@ class GameDB:
         return self.execute_sql(sql)
 
 
+    # Get a list of every single user id
+    def get_all_users(self):
+        sql = "SELECT user.user FROM user"
+        result = self.execute_sql(sql)
+        user_ids = np.array(result)
+        return user_ids.flatten().tolist()
+
+
+
+class Recommender:
+    db = GameDB()
+    def __init__(self,required_votes=5000):
+        self.game_ids, self.game_names = Recommender.db.get_top_games(required_votes)
+        self.user_ids = Recommender.db.get_all_users()
+        Recommender.db.get_ratings_by_user(self.user_ids)
+
+
 
 def main():
-    db = GameDB()
+    recommender = Recommender()
 
-    top_games = db.get_top_games(5000)
-    game_ids = top_games[:,0]
-    print(game_ids)
-    game_names = top_games[:,0:2]
-    print(game_names)
+
 
