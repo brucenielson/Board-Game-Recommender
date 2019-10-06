@@ -28,7 +28,7 @@ class GameDB:
         else:
             return mycursor
 
-
+    # Gets all the ratings for a given list of game ids. e.g.     gameids = [152]
     def get_game_ratings(self, gameids):
         for gameid in gameids:
             sql = "SELECT game.name, rating.user, rating.rating FROM game, rating WHERE game.game = rating.game and game.game = " + str(gameid);
@@ -36,6 +36,7 @@ class GameDB:
 
 
     # Gets the top games that have at least some number of votes (required_votes) and returns them ordered by weighted rating
+    # Numpy array returned is in this column order: Game ID, Game Name, Rating, # Votes, Weighted Rating
     def get_top_games(self, required_votes):
         # Get average rating
         sql = "SELECT avg(rating) FROM rating, (SELECT game.game as id, count(rating.rating) as votes FROM game, rating WHERE game.game = rating.game GROUP BY game.game  HAVING votes > 5000 ORDER BY rating DESC) game_rating WHERE rating.game = game_rating.id"
@@ -54,40 +55,18 @@ class GameDB:
         return game_ratings
 
 
-
-    def get_all_game_ratings(self):
-        sql = "SELECT game.game, game.name, rating.rating FROM game, rating WHERE game.game = rating.game ORDER BY game.game, rating.rating DESC LIMIT 1000"
-        return self.execute_sql(sql, all=False)
-
     def get_all_games(self):
         sql = "SELECT game.game, game.name FROM game ORDER BY game.game DESC"
         return self.execute_sql(sql)
 
-    def get_all_ratings(self):
-        sql = "SELECT game, user, rating FROM rating ORDER BY game LIMIT 1000000"
-        return self.execute_sql(sql)
 
 
 def main():
-    gameids = [152]
     db = GameDB()
-    # result=db.get_game_ratings(gameids)
-    # print(result)
-    top_games = db.get_top_games(5000)
-    print(len(top_games))
-    print(top_games)
-    # cursor = db.get_all_game_ratings()
-    # row = cursor.fetchone()
-    # while row is not None:
-    #     print(row)
-    #     row = cursor.fetchone()
-    # print(result)
 
-    # result = db.get_all_games()
-    # print(len(result))
-    # print(result)
-    #
-    # result = db.get_all_ratings()
-    # print(sys.getsizeof(result))
-    # print(len(result))
+    top_games = db.get_top_games(5000)
+    game_ids = top_games[:,0]
+    print(game_ids)
+    game_names = top_games[:,0:2]
+    print(game_names)
 
