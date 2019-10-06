@@ -1,0 +1,1 @@
+SELECT game.game, game.name, AVG(rating.rating) as avg_rating, count(rating.rating) as votes FROM game, rating WHERE game.game = rating.game and game.game = 15987 GROUP BY game.game, rating ORDER BY rating DESC LIMIT 11

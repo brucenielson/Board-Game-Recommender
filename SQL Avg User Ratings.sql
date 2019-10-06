@@ -1,0 +1,1 @@
+SELECT avg(rating) FROM rating

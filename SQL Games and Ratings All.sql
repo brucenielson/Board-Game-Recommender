@@ -1,0 +1,1 @@
+SELECT game.game, game.name, rating.rating FROM game, rating WHERE game.game = rating.game ORDER BY game.game DESC

@@ -1,0 +1,1 @@
+SELECT game.game, game.name, AVG(rating.rating) as rating, count(rating.rating) as votes FROM game, rating WHERE game.game = rating.game GROUP BY game.game ORDER BY rating DESC
