@@ -1,1 +1,1 @@
-SELECT game.game, game.name, rating.rating FROM game, rating WHERE game.game = rating.game ORDER BY game.game DESC
+SELECT rating.user, game.game, game.name, rating.rating FROM game, rating WHERE game.game = rating.game and rating.user in (20043, 102411) ORDER BY rating.user DESC

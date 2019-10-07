@@ -94,7 +94,7 @@ class GameDB:
             games_str = " WHERE game in ("+ games_str +")"
             sql = sql + games_str
 
-        sql = sql + " GROUP BY rating.user order by num_ratings DESC) rating_counts"
+        sql = sql + " GROUP BY rating.user ORDER BY num_ratings DESC, rating.user ASC) rating_counts"
 
         if top_users is not None:
             sql = sql + " LIMIT " + str(top_users)
@@ -118,13 +118,14 @@ class Recommender:
 
     def pearson_correlation(self, user_id1, user_id2):
         # Get ratings for each user
-        if user_id1 not in self.user_ratings:
-            print("ERROR!")
-            print(self.user_ratings)
+        if DEBUG:
+            if user_id1 not in self.user_ratings:
+                print("ERROR!")
+                print(self.user_ratings)
 
-        if user_id1 not in self.user_ratings:
-            print("ERROR!")
-            print(self.user_ratings)
+            if user_id1 not in self.user_ratings:
+                print("ERROR!")
+                print(self.user_ratings)
 
         user1_ratings = self.user_ratings[user_id1]
         user2_ratings = self.user_ratings[user_id2]
@@ -162,14 +163,20 @@ class Recommender:
 
 
     def top_matches(self, user, top=5):
+
         def sort_correlation(row):
             return row[0][0]
 
+        start = time.time()
         user_ratings = self.user_ratings
         scores = [(self.pearson_correlation(user, other), other) for other in user_ratings if user != other]
 
         # Sort the list
         scores.sort(key=sort_correlation, reverse=True)
+        if DEBUG:
+            end = time.time()
+            print("Found matches in "+str(round(end-start, 2))+" seconds")
+
         return scores[0:top]
 
 
@@ -177,7 +184,7 @@ class Recommender:
 
 def main():
     recommender = Recommender()
-    matches = recommender.top_matches(20043)
+    matches = recommender.top_matches(14791, top=20)
     print(matches)
 
 
