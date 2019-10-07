@@ -3,8 +3,40 @@ import sys
 import numpy as np
 import time
 import math
+import pickle
+import os
 
 DEBUG = True
+
+
+def get_pickled_list(list_name):
+    # f = open(os.path.dirname(__file__) + "\\" + list_name + '.txt')
+    f = open(list_name + '.pkl', "rb")
+    sl = pickle.load(f)
+    f.close()
+    return sl
+
+
+def pickle_list(list_data, list_name):
+    # file_name = os.path.dirname(__file__) + "\\" + str(list_name) + '.txt'
+    file_name = list_name + '.pkl'
+    try:
+        os.remove(file_name)
+    except:
+        pass
+
+    # f = open(os.path.dirname(__file__) + "\\" + str(list_name) + '.txt', 'wb')
+    f = open(list_name + '.pkl', 'wb')
+    pickle.dump(list_data, f)
+    f.close()
+
+
+def file_exists(list_name):
+    list_name = list_name + ".pkl"
+    return os.path.exists(list_name) and os.path.isfile(list_name)
+
+
+
 
 class GameDB:
 
@@ -105,15 +137,42 @@ class GameDB:
         return user_ids.flatten().tolist()
 
 
-
-
 class Recommender:
     db = GameDB()
-    def __init__(self, required_votes=5000, top_users=25000):
-        self.game_ids, self.game_names = Recommender.db.get_top_games(required_votes)
-        self.user_ids = Recommender.db.get_users(top_users, self.game_ids)
-        self.user_ratings = Recommender.db.get_ratings(self.game_ids, self.user_ids)
+    def __init__(self, required_votes=5000, top_users=25000, reload=False):
+        # Try loading from pickle first unless asked not to
+        fn_game_ids = "game_ids"
+        fn_game_names = "game_names"
 
+        if reload or not (file_exists(fn_game_ids) and file_exists(fn_game_names)):
+            # load file from database
+            self.game_ids, self.game_names = Recommender.db.get_top_games(required_votes)
+            # pickle it for next time
+            pickle_list(self.game_ids,fn_game_ids)
+            pickle_list(self.game_names,fn_game_names)
+        else:
+            self.game_ids = get_pickled_list(fn_game_ids)
+            self.game_names = get_pickled_list(fn_game_names)
+
+        file_name = "user_ids"
+        if reload or not file_exists(file_name):
+            # load file from database
+            self.user_ids = Recommender.db.get_users(top_users, self.game_ids)
+            # pickle it for next time
+            pickle_list(self.user_ids, file_name)
+        else:
+            self.user_ids = get_pickled_list(file_name)
+
+        file_name = "user_ratings"
+        if reload or not file_exists(file_name):
+            # load file from database
+            self.user_ratings = Recommender.db.get_ratings(self.game_ids, self.user_ids)
+            # pickle it for next time
+            pickle_list(self.user_ratings, file_name)
+        else:
+            self.user_ratings = get_pickled_list(file_name)
+
+        pass
 
 
     def pearson_correlation(self, user_id1, user_id2):
@@ -180,10 +239,8 @@ class Recommender:
         return scores[0:top]
 
 
-
-
 def main():
-    recommender = Recommender()
+    recommender = Recommender(reload=False)
     matches = recommender.top_matches(14791, top=20)
     print(matches)
 
