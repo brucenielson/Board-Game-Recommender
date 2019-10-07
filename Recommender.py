@@ -172,8 +172,6 @@ class Recommender:
         else:
             self.user_ratings = get_pickled_list(file_name)
 
-        pass
-
 
     def pearson_correlation(self, user_id1, user_id2):
         # Get ratings for each user
