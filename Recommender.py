@@ -109,15 +109,23 @@ class GameDB:
 
 class Recommender:
     db = GameDB()
-    def __init__(self,required_votes=5000):
+    def __init__(self, required_votes=5000, top_users=25000):
         self.game_ids, self.game_names = Recommender.db.get_top_games(required_votes)
-        self.user_ids = Recommender.db.get_users(25000, self.game_ids)
+        self.user_ids = Recommender.db.get_users(top_users, self.game_ids)
         self.user_ratings = Recommender.db.get_ratings(self.game_ids, self.user_ids)
 
 
 
     def pearson_correlation(self, user_id1, user_id2):
         # Get ratings for each user
+        if user_id1 not in self.user_ratings:
+            print("ERROR!")
+            print(self.user_ratings)
+
+        if user_id1 not in self.user_ratings:
+            print("ERROR!")
+            print(self.user_ratings)
+
         user1_ratings = self.user_ratings[user_id1]
         user2_ratings = self.user_ratings[user_id2]
 
@@ -130,7 +138,7 @@ class Recommender:
         # if nothing in common, correlation is 0.0
         mutal_count = len(mutal_ratings)
         if mutal_count == 0:
-            return 0.0
+            return (0.0, 0)
 
         # Add up all ratings
         sum1 = sum([user1_ratings[id] for id in mutal_ratings])
@@ -148,20 +156,29 @@ class Recommender:
         denominator = math.sqrt( (sum_sq_1 - (sum1**2)/mutal_count) * (sum_sq_2 - (sum2**2)/mutal_count) )
 
         if denominator == 0:
-            return 0.0
+            return (0.0, 0)
 
-        return numerator / denominator
+        return ((numerator / denominator), mutal_count)
 
 
+    def top_matches(self, user, top=5):
+        def sort_correlation(row):
+            return row[0][0]
 
+        user_ratings = self.user_ratings
+        scores = [(self.pearson_correlation(user, other), other) for other in user_ratings if user != other]
+
+        # Sort the list
+        scores.sort(key=sort_correlation, reverse=True)
+        return scores[0:top]
 
 
 
 
 def main():
     recommender = Recommender()
-    correlation = recommender.pearson_correlation(5983, 12645)
-    print(correlation)
+    matches = recommender.top_matches(20043)
+    print(matches)
 
 
 
