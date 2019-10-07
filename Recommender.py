@@ -1,7 +1,7 @@
 import mysql.connector
 import sys
 import numpy as np
-
+import time
 
 DEBUG = True
 
@@ -19,28 +19,25 @@ class GameDB:
 
     def execute_sql(self, sql, all=True):
         if DEBUG:
+            start = time.time()
             print(sql)
         mycursor = GameDB.mydb.cursor()
         mycursor.execute(sql)
         if all:
-            result = mycursor.fetchall()
-            return result
+            results = mycursor.fetchall()
+            if DEBUG:
+                end = time.time()
+                print(len(results),"rows returned in "+str(round(end-start,2))+" seconds")
+            return results
         else:
             return mycursor
 
-    # Gets all the ratings for a given list of game ids. e.g.     gameids = [152]
-    def get_ratings_by_game(self, gameids):
-        for gameid in gameids:
-            sql = "SELECT game.name, rating.user, rating.rating FROM game, rating WHERE game.game = rating.game and game.game = " + str(gameid);
-            return self.execute_sql(sql)
-
-    def get_ratings_by_user(self, user_ids):
-        preferences = {}
-        user_str = ','.join(map(str, user_ids))
-        sql = "SELECT game, rating FROM rating WHERE user in (" + user_str + ")"
+    def get_ratings(self, game_ids):
+        games_str = ','.join(map(str, game_ids))
+        sql = "SELECT user, game, rating FROM rating WHERE game in ("+games_str+") ORDER BY user"
         game_ratings = self.execute_sql(sql)
         return
-
+        preferences = {}
         for user in user_ids:
             count = 0
             for i in range(len(game_ratings)):
@@ -82,13 +79,24 @@ class GameDB:
         return user_ids.flatten().tolist()
 
 
+    # Get a list of distinct users in our list of top games
+    def get_users(self, game_ids):
+        games_str = ','.join(map(str, game_ids))
+        sql = "SELECT distinct user FROM rating WHERE game in ("+ games_str +")"
+        result = self.execute_sql(sql)
+        user_ids = np.array(result)
+        return user_ids.flatten().tolist()
+
+
+
 
 class Recommender:
     db = GameDB()
-    def __init__(self,required_votes=5000):
+    def __init__(self,required_votes=25000):
         self.game_ids, self.game_names = Recommender.db.get_top_games(required_votes)
-        self.user_ids = Recommender.db.get_all_users()
-        Recommender.db.get_ratings_by_user(self.user_ids)
+        # self.user_ids = Recommender.db.get_users(self.game_ids)
+        # print(len(self.user_ids))
+        Recommender.db.get_ratings(self.game_ids)
 
 
 

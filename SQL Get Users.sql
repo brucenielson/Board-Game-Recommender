@@ -1,1 +1,1 @@
-SELECT * FROM user
+SELECT distinct rating.user FROM rating
