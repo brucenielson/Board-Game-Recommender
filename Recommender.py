@@ -32,20 +32,25 @@ class GameDB:
         else:
             return mycursor
 
-    def get_ratings(self, game_ids):
+    def get_ratings(self, game_ids, user_ids):
         games_str = ','.join(map(str, game_ids))
-        sql = "SELECT user, game, rating FROM rating WHERE game in ("+games_str+") ORDER BY user"
+        user_str = ','.join(map(str, user_ids))
+        sql = "SELECT user, game, rating FROM rating WHERE game in ("+games_str+") and user in ("+user_str+") ORDER BY user"
         game_ratings = self.execute_sql(sql)
-        return
         preferences = {}
-        for user in user_ids:
-            count = 0
-            for i in range(len(game_ratings)):
-                count += 1
-                if count % 1000 == 0:
-                    print(count)
+        count = 0
+        for i in range(len(game_ratings)):
+            count += 1
+            if DEBUG and count % 1000 == 0:
+                print(count)
+            user = int(game_ratings[i][0])
+            game = int(game_ratings[i][1])
+            rating = int(game_ratings[i][2])
+            if user not in preferences:
                 preferences[user] = {}
-                preferences[user][game_ratings[i][0]] = int(game_ratings[i][1])
+            preferences[user][game] = int(rating)
+        return preferences
+
 
     # Gets the top games that have at least some number of votes (required_votes) and returns them ordered by weighted rating
     # Numpy array returned is in this column order: Game ID, Game Name, Rating, # Votes, Weighted Rating
@@ -80,10 +85,21 @@ class GameDB:
 
 
     # Get a list of distinct users in our list of top games
-    def get_users(self, game_ids):
-        games_str = ','.join(map(str, game_ids))
-        sql = "SELECT distinct user FROM rating WHERE game in ("+ games_str +")"
+    def get_users(self, top_users=None, game_ids=None):
+        sql = "SELECT user FROM (SELECT distinct rating.user as user, count(*) as num_ratings FROM rating"
+
+        if game_ids is not None:
+            games_str = ','.join(map(str, game_ids))
+            games_str = " WHERE game in ("+ games_str +")"
+            sql = sql + games_str
+
+        sql = sql + " GROUP BY rating.user order by num_ratings DESC) rating_counts"
+
+        if top_users is not None:
+            sql = sql + " LIMIT " + str(top_users)
+
         result = self.execute_sql(sql)
+
         user_ids = np.array(result)
         return user_ids.flatten().tolist()
 
@@ -92,11 +108,11 @@ class GameDB:
 
 class Recommender:
     db = GameDB()
-    def __init__(self,required_votes=25000):
+    def __init__(self,required_votes=5000):
         self.game_ids, self.game_names = Recommender.db.get_top_games(required_votes)
-        # self.user_ids = Recommender.db.get_users(self.game_ids)
-        # print(len(self.user_ids))
-        Recommender.db.get_ratings(self.game_ids)
+        self.user_ids = Recommender.db.get_users(25000, self.game_ids)
+        preferences = Recommender.db.get_ratings(self.game_ids, self.user_ids)
+        print(preferences)
 
 
 
