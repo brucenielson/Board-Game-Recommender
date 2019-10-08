@@ -172,6 +172,15 @@ class Recommender:
         else:
             self.user_ratings = get_pickled_list(file_name)
 
+        # Remake game names into a dictionary
+        game_names = {}
+        for game in self.game_names:
+            id = game[0]
+            name = game[1]
+            game_names[id] = name
+
+        self.game_names = game_names
+
 
     def pearson_correlation(self, user_id1, user_id2):
         # Get ratings for each user
@@ -258,7 +267,7 @@ class Recommender:
                     sim_sum[item] += sim_score
 
             # Create normalized list
-            rankings=[(total/sim_sum[item],item) for item, total in totals.items()]
+            rankings=[(total/sim_sum[item],item, self.game_names[item]) for item, total in totals.items()]
 
             # Return sorted list
             rankings.sort(reverse=True)
