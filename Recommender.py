@@ -219,14 +219,14 @@ class Recommender:
         return ((numerator / denominator), mutal_count)
 
 
-    def top_matches(self, user, top=5):
+    def top_user_matches(self, user, top=5):
 
         def sort_correlation(row):
-            return row[0][0]
+            return row[1][0]
 
         start = time.time()
         user_ratings = self.user_ratings
-        scores = [(self.pearson_correlation(user, other), other) for other in user_ratings if user != other]
+        scores = [(other, self.pearson_correlation(user, other)) for other in user_ratings if user != other]
 
         # Sort the list
         scores.sort(key=sort_correlation, reverse=True)
@@ -237,10 +237,41 @@ class Recommender:
         return scores[0:top]
 
 
+    def get_recommendations(self, user, top=5):
+        totals = {}
+        sim_sum = {}
+        user_ratings = self.user_ratings
+        for other in user_ratings:
+            if other == user: continue
+            sim_score = self.pearson_correlation(user, other)[0]
+
+            if sim_score == 0: continue
+            for item in user_ratings[other]:
+
+                # Only score items I haven't yet
+                if item not in user_ratings[user] or user_ratings[user][item] == 0:
+                    # Similarity * Score
+                    totals.setdefault(item,0)
+                    totals[item]+=user_ratings[other][item]*sim_score
+                    # sum of similarities
+                    sim_sum.setdefault(item,0)
+                    sim_sum[item] += sim_score
+
+            # Create normalized list
+            rankings=[(total/sim_sum[item],item) for item, total in totals.items()]
+
+            # Return sorted list
+            rankings.sort(reverse=True)
+            return rankings[0:top]
+
+
 def main():
     recommender = Recommender(reload=False)
-    matches = recommender.top_matches(14791, top=20)
-    print(matches)
+    user_matches = recommender.top_user_matches(14791, top=20)
+    print(user_matches)
+    recommendations = recommender.get_recommendations(14791)
+    print(recommendations)
+
 
 
 
