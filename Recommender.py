@@ -254,7 +254,7 @@ class Recommender:
             if other == user: continue
             sim_score = self.pearson_correlation(user, other)[0]
 
-            if sim_score == 0: continue
+            if sim_score <= 0: continue
             for item in user_ratings[other]:
 
                 # Only score items I haven't yet
@@ -273,14 +273,22 @@ class Recommender:
             rankings.sort(reverse=True)
             return rankings[0:top]
 
+    def get_game_ratings_by_name(self, user):
+        game_ratings = {}
+        for game_id in self.user_ratings[user]:
+            name = self.game_names[game_id]
+            game_ratings[name] = self.user_ratings[user][game_id]
+
+        return game_ratings
+
+
 
 def main():
     recommender = Recommender(reload=False)
     user_matches = recommender.top_user_matches(14791, top=20)
     print(user_matches)
-    recommendations = recommender.get_recommendations(14791)
+    recommendations = recommender.get_recommendations(14791, top=25)
     print(recommendations)
+    print(recommender.get_game_ratings_by_name(14791))
 
-
-
-
+    
