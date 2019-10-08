@@ -258,7 +258,7 @@ class Recommender:
             for item in user_ratings[other]:
 
                 # Only score items I haven't yet
-                if item not in user_ratings[user] or user_ratings[user][item] == 0:
+                if item not in user_ratings[user]:
                     # Similarity * Score
                     totals.setdefault(item,0)
                     totals[item]+=user_ratings[other][item]*sim_score
@@ -266,12 +266,12 @@ class Recommender:
                     sim_sum.setdefault(item,0)
                     sim_sum[item] += sim_score
 
-            # Create normalized list
-            rankings=[(total/sim_sum[item],item, self.game_names[item]) for item, total in totals.items()]
+        # Create normalized list
+        rankings=[( round(total/sim_sum[item],2), item, self.game_names[item]) for item, total in totals.items()]
 
-            # Return sorted list
-            rankings.sort(reverse=True)
-            return rankings[0:top]
+        # Return sorted list
+        rankings.sort(reverse=True)
+        return rankings[0:top]
 
     def get_game_ratings_by_name(self, user):
         game_ratings = {}
@@ -291,4 +291,3 @@ def main():
     print(recommendations)
     print(recommender.get_game_ratings_by_name(14791))
 
-    
