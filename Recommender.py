@@ -173,13 +173,16 @@ class Recommender:
             self.user_ratings = get_pickled_list(file_name)
 
         # Remake game names into a dictionary
-        game_names = {}
+        game_id_to_name = {}
+        game_name_to_id = {}
         for game in self.game_names:
             id = game[0]
             name = game[1]
-            game_names[id] = name
+            game_id_to_name[id] = name
+            game_name_to_id[name] = id
 
-        self.game_names = game_names
+        self.game_id_to_name = game_id_to_name
+        self.game_name_to_id = game_name_to_id
 
 
     def pearson_correlation(self, user_id1, user_id2):
@@ -254,7 +257,7 @@ class Recommender:
             if other == user: continue
             sim_score = self.pearson_correlation(user, other)[0]
 
-            if sim_score <= 0: continue
+            if sim_score <= 0.0: continue
             for item in user_ratings[other]:
 
                 # Only score items I haven't yet
@@ -267,7 +270,7 @@ class Recommender:
                     sim_sum[item] += sim_score
 
         # Create normalized list
-        rankings=[( round(total/sim_sum[item],2), item, self.game_names[item]) for item, total in totals.items()]
+        rankings=[( round(total/sim_sum[item],2), item, self.game_id_to_name[item]) for item, total in totals.items()]
 
         # Return sorted list
         rankings.sort(reverse=True)
@@ -276,11 +279,27 @@ class Recommender:
     def get_game_ratings_by_name(self, user):
         game_ratings = {}
         for game_id in self.user_ratings[user]:
-            name = self.game_names[game_id]
+            name = self.game_id_to_name[game_id]
             game_ratings[name] = self.user_ratings[user][game_id]
 
         return game_ratings
 
+
+    def add_user(self):
+        user_ratings = self.user_ratings
+        id_list = [id for id in user_ratings]
+        next = max(id_list)
+        user_ratings[next] = {}
+        return next
+
+    def add_game(self, user_id, game, rating):
+        if type(game) == int:
+            self.user_ratings[user_id][game] = rating
+        elif type(game) == str:
+            id = self.game_name_to_id[game]
+            self.user_ratings[user_id][id] = rating
+        else:
+            raise Exception("'game' must be integer id or string name.")
 
 
 def main():
@@ -290,4 +309,58 @@ def main():
     recommendations = recommender.get_recommendations(14791, top=25)
     print(recommendations)
     print(recommender.get_game_ratings_by_name(14791))
+
+    # Test Set: Fantasy
+    print("")
+    print("")
+    print("Test Set: Fantasy")
+    fantasy_id = recommender.add_user()
+    recommender.add_game(fantasy_id, 'Gloomhaven', 10)
+    recommender.add_game(fantasy_id, 17226, 10)
+    recommender.add_game(fantasy_id, 66356, 9)
+    print("User's Games:")
+    print(recommender.get_game_ratings_by_name(fantasy_id))
+    print("Similar Users:")
+    user_matches = recommender.top_user_matches(fantasy_id, top=20)
+    print(user_matches)
+    print("Game Recommendations:")
+    recommendations = recommender.get_recommendations(fantasy_id, top=25)
+    print(recommendations)
+
+
+    # Test Set: Lovecraft
+    print("")
+    print("")
+    print("Test Set: Lovecraft")
+    lovecraft_id = recommender.add_user()
+    recommender.add_game(lovecraft_id, 205059, 10)
+    recommender.add_game(lovecraft_id, 'Eldritch Horror', 10)
+    recommender.add_game(lovecraft_id, 'Arkham Horror', 9)
+    recommender.add_game(lovecraft_id, 83330, 10)
+    print("User's Games:")
+    print(recommender.get_game_ratings_by_name(lovecraft_id))
+    print("Similar Users:")
+    user_matches = recommender.top_user_matches(lovecraft_id, top=20)
+    print(user_matches)
+    print("Game Recommendations:")
+    recommendations = recommender.get_recommendations(lovecraft_id, top=25)
+    print(recommendations)
+
+    # Casual Gamer
+    print("")
+    print("")
+    print("Test Set: Casual")
+    casual_id = recommender.add_user()
+    recommender.add_game(casual_id, 'Chess', 10)
+    recommender.add_game(casual_id, 'Poker', 10)
+    recommender.add_game(casual_id, 2397, 9)
+    print("User's Games:")
+    print(recommender.get_game_ratings_by_name(casual_id))
+    print("Similar Users:")
+    user_matches = recommender.top_user_matches(casual_id, top=20)
+    print(user_matches)
+    print("Game Recommendations:")
+    recommendations = recommender.get_recommendations(casual_id, top=25)
+    print(recommendations)
+
 
