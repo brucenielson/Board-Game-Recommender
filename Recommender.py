@@ -269,10 +269,11 @@ class Recommender:
             assert len(users) == len(scores)
 
         # Determine values for weighted score
-        min_count = max(mutual) # m
-        min_count = min(min_count, 5)
-        print("min votes", min_count)
+        max_count = max(mutual) # m
+        min_count = min(max_count, 5)
+        print("min votes", min_count, "max", max_count)
         avg_score = np.mean(scores) # C
+        std_score = np.std(scores)
 
         for i in range(len(users)):
             other = users[i]
@@ -281,7 +282,14 @@ class Recommender:
             if mutual_count < min_count: continue
 
             # (v ÷ (v+m)) × R + (m ÷ (v+m)) × C
-            sim_score = raw_score # (mutual_count / (mutual_count+min_count)) * raw_score + (min_count / (mutual_count+min_count)) * avg_score
+            if max_count > min_count * 5:
+                sim_score = (mutual_count / (mutual_count+min_count)) * raw_score + (min_count / (mutual_count+min_count)) * avg_score
+            else:
+                sim_score = raw_score
+
+            # Drop people too different in tastes
+            if sim_score < avg_score - (std_score * 2.0): continue
+
             for item in user_ratings[other]:
 
                 # Only score items I haven't yet
@@ -359,8 +367,8 @@ def main():
     print("Test Set: Lovecraft")
     lovecraft_id = recommender.add_user()
     # recommender.add_game(lovecraft_id, 205059, 10)
-    recommender.add_game(lovecraft_id, 'Eldritch Horror', 10)
-    recommender.add_game(lovecraft_id, 'Arkham Horror', 9)
+    recommender.add_game(lovecraft_id, 'Elder Sign', 9)
+    recommender.add_game(lovecraft_id, 'Arkham Horror', 10)
     recommender.add_game(lovecraft_id, 83330, 10)
     print("User's Games:")
     print(recommender.get_game_ratings_by_name(lovecraft_id))
