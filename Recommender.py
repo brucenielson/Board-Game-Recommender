@@ -96,7 +96,7 @@ class GameDB:
         result = self.execute_sql(sql)
         game_ratings = np.array(result, dtype=object)#dtype=([('id', int), ('name', '<U256'), ('raw_rating', float), ('votes', int)]))
 
-        # (v ÷ (v+m)) × R + (m ÷ (v+m)) × C
+        # (v ÷ (v+m)) × R + (m ÷ (v+m)) × C - from https://stats.stackexchange.com/questions/6418/rating-system-taking-account-of-number-of-votes
         weighted_rating = (game_ratings[:,3:4] / (game_ratings[:,3:4]+required_votes)) * game_ratings[:,2:3].astype(float) + (required_votes / ((game_ratings[:,3:4])+required_votes)) * float(c)
         game_ratings = np.hstack((game_ratings, weighted_rating))
         # Sort by weighted rating. Python, lamely, can't do a sort in numpy easily. But this trick worked: https://stackoverflow.com/questions/16486252/is-it-possible-to-use-argsort-in-descending-order
@@ -231,6 +231,7 @@ class Recommender:
         return ((numerator / denominator), mutal_count)
 
 
+
     def top_user_matches(self, user, top=5):
 
         def sort_correlation(row):
@@ -253,11 +254,34 @@ class Recommender:
         totals = {}
         sim_sum = {}
         user_ratings = self.user_ratings
+        scores = []
+        users = []
+        mutual = []
         for other in user_ratings:
             if other == user: continue
-            sim_score = self.pearson_correlation(user, other)[0]
-
+            sim_score, mutual_count = self.pearson_correlation(user, other)
             if sim_score <= 0.0: continue
+            scores.append(sim_score)
+            users.append(other)
+            mutual.append(mutual_count)
+
+        if DEBUG:
+            assert len(users) == len(scores)
+
+        # Determine values for weighted score
+        min_count = max(mutual) # m
+        min_count = min(min_count, 5)
+        print("min votes", min_count)
+        avg_score = np.mean(scores) # C
+
+        for i in range(len(users)):
+            other = users[i]
+            raw_score = scores[i] # R
+            mutual_count = mutual[i] # v
+            if mutual_count < min_count: continue
+
+            # (v ÷ (v+m)) × R + (m ÷ (v+m)) × C
+            sim_score = raw_score # (mutual_count / (mutual_count+min_count)) * raw_score + (min_count / (mutual_count+min_count)) * avg_score
             for item in user_ratings[other]:
 
                 # Only score items I haven't yet
@@ -275,6 +299,7 @@ class Recommender:
         # Return sorted list
         rankings.sort(reverse=True)
         return rankings[0:top]
+
 
     def get_game_ratings_by_name(self, user):
         game_ratings = {}
@@ -333,7 +358,7 @@ def main():
     print("")
     print("Test Set: Lovecraft")
     lovecraft_id = recommender.add_user()
-    recommender.add_game(lovecraft_id, 205059, 10)
+    # recommender.add_game(lovecraft_id, 205059, 10)
     recommender.add_game(lovecraft_id, 'Eldritch Horror', 10)
     recommender.add_game(lovecraft_id, 'Arkham Horror', 9)
     recommender.add_game(lovecraft_id, 83330, 10)
