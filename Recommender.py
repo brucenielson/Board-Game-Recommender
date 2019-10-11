@@ -336,7 +336,7 @@ class Recommender:
 
 
 def main():
-    recommender = Recommender(reload=False)
+    recommender = Recommender(reload=False, top_users=25000)
     # user_matches = recommender.top_user_matches(14791, top=20)
     # print(user_matches)
 
@@ -349,7 +349,7 @@ def main():
     print("")
     print("Test Set: Fantasy")
     fantasy_id = recommender.add_user()
-    recommender.add_game(fantasy_id, 'Gloomhaven', 10)
+    recommender.add_game(fantasy_id, 'HeroQuest', 10)
     recommender.add_game(fantasy_id, 17226, 10)
     recommender.add_game(fantasy_id, 66356, 9)
     print("User's Games:")
