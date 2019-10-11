@@ -126,7 +126,7 @@ class GameDB:
             games_str = " WHERE game in ("+ games_str +")"
             sql = sql + games_str
 
-        sql = sql + " GROUP BY rating.user ORDER BY num_ratings DESC, rating.user ASC) rating_counts"
+        sql = sql + " GROUP BY rating.user ORDER BY num_ratings ASC, rating.user ASC) rating_counts WHERE num_ratings >= 5"
 
         if top_users is not None:
             sql = sql + " LIMIT " + str(top_users)
@@ -337,11 +337,12 @@ class Recommender:
 
 def main():
     recommender = Recommender(reload=False)
-    user_matches = recommender.top_user_matches(14791, top=20)
-    print(user_matches)
-    recommendations = recommender.get_recommendations(14791, top=25)
-    print(recommendations)
-    print(recommender.get_game_ratings_by_name(14791))
+    # user_matches = recommender.top_user_matches(14791, top=20)
+    # print(user_matches)
+
+    # recommendations = recommender.get_recommendations(14791, top=25)
+    # print(recommendations)
+    # print(recommender.get_game_ratings_by_name(14791))
 
     # Test Set: Fantasy
     print("")
@@ -353,9 +354,6 @@ def main():
     recommender.add_game(fantasy_id, 66356, 9)
     print("User's Games:")
     print(recommender.get_game_ratings_by_name(fantasy_id))
-    print("Similar Users:")
-    user_matches = recommender.top_user_matches(fantasy_id, top=20)
-    print(user_matches)
     print("Game Recommendations:")
     recommendations = recommender.get_recommendations(fantasy_id, top=25)
     print(recommendations)
@@ -372,9 +370,6 @@ def main():
     recommender.add_game(lovecraft_id, 83330, 10)
     print("User's Games:")
     print(recommender.get_game_ratings_by_name(lovecraft_id))
-    print("Similar Users:")
-    user_matches = recommender.top_user_matches(lovecraft_id, top=20)
-    print(user_matches)
     print("Game Recommendations:")
     recommendations = recommender.get_recommendations(lovecraft_id, top=25)
     print(recommendations)
@@ -389,9 +384,6 @@ def main():
     recommender.add_game(casual_id, 2397, 9)
     print("User's Games:")
     print(recommender.get_game_ratings_by_name(casual_id))
-    print("Similar Users:")
-    user_matches = recommender.top_user_matches(casual_id, top=20)
-    print(user_matches)
     print("Game Recommendations:")
     recommendations = recommender.get_recommendations(casual_id, top=25)
     print(recommendations)
