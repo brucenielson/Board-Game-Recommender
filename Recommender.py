@@ -274,6 +274,10 @@ class Recommender:
         print("min votes", min_count, "max", max_count)
         avg_score = np.mean(scores) # C
         std_score = np.std(scores)
+        count = sum(mutual[i] >= min_count for i in range(len(scores)))
+        while count < 10 and min_count > 0:
+            min_count = max(min_count - 1 , 0)
+            count = sum(mutual[i] >= min_count for i in range(len(scores)))
 
         for i in range(len(users)):
             other = users[i]
@@ -288,7 +292,7 @@ class Recommender:
                 sim_score = raw_score
 
             # Drop people too different in tastes
-            if sim_score < avg_score - (std_score * 2.0): continue
+            if sim_score < avg_score - (std_score * 1.0): continue
 
             for item in user_ratings[other]:
 
@@ -336,7 +340,7 @@ class Recommender:
 
 
 def main():
-    recommender = Recommender(reload=False, top_users=25000)
+    recommender = Recommender(reload=False, top_users=50000)
     # user_matches = recommender.top_user_matches(14791, top=20)
     # print(user_matches)
 
@@ -349,13 +353,13 @@ def main():
     print("")
     print("Test Set: Fantasy")
     fantasy_id = recommender.add_user()
-    recommender.add_game(fantasy_id, 'HeroQuest', 10)
+    recommender.add_game(fantasy_id, 'Gloomhaven', 10)
     recommender.add_game(fantasy_id, 17226, 10)
     recommender.add_game(fantasy_id, 66356, 9)
     print("User's Games:")
     print(recommender.get_game_ratings_by_name(fantasy_id))
     print("Game Recommendations:")
-    recommendations = recommender.get_recommendations(fantasy_id, top=25)
+    recommendations = recommender.get_recommendations(fantasy_id, top=5)
     print(recommendations)
 
 
@@ -371,7 +375,7 @@ def main():
     print("User's Games:")
     print(recommender.get_game_ratings_by_name(lovecraft_id))
     print("Game Recommendations:")
-    recommendations = recommender.get_recommendations(lovecraft_id, top=25)
+    recommendations = recommender.get_recommendations(lovecraft_id, top=5)
     print(recommendations)
 
     # Casual Gamer
@@ -385,7 +389,7 @@ def main():
     print("User's Games:")
     print(recommender.get_game_ratings_by_name(casual_id))
     print("Game Recommendations:")
-    recommendations = recommender.get_recommendations(casual_id, top=25)
+    recommendations = recommender.get_recommendations(casual_id, top=5)
     print(recommendations)
 
 
