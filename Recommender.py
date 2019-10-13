@@ -415,7 +415,7 @@ def print_recommendations(recommendations):
         print("#", i+1, "Predicted Rating:", recommendations[i][0], "Game:", recommendations[i][2])
 
 def main():
-    recommender = Recommender(reload=True, top_games=1000, num_users=150000)
+    recommender = Recommender(reload=True, top_games=2000, num_users=150000)
     # user_matches = recommender.top_user_matches(14791, top=20)
     # print(user_matches)
 
