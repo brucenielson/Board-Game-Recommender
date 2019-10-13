@@ -5,6 +5,7 @@ import time
 import math
 import pickle
 import os
+import random
 
 DEBUG = True
 
@@ -185,6 +186,32 @@ class Recommender:
         self.game_name_to_id = game_name_to_id
 
 
+    def euclidean_distance(self, user_id1, user_id2):
+        # Get the list of mutual items
+        user1_ratings = self.user_ratings[user_id1]
+        user2_ratings = self.user_ratings[user_id2]
+
+        # Create list of mutual ratings
+        mutal_ratings = {}
+        for game_id in user1_ratings:
+            if game_id in user2_ratings:
+                mutal_ratings[game_id] = True
+
+        # if nothing in common, correlation is 0.0
+        mutal_count = len(mutal_ratings)
+        if mutal_count == 0:
+            return (0.0, 0)
+
+        # Add up the squares of all the differences
+        sum_of_squares = sum([ (user1_ratings[game_id] - user2_ratings[game_id])**2.0 for game_id in mutal_ratings] )
+
+        ret = (1 / (1 + math.sqrt(sum_of_squares)), mutal_count)
+        return ret
+
+
+
+
+
     def pearson_correlation(self, user_id1, user_id2):
         # Get ratings for each user
         if DEBUG:
@@ -228,18 +255,25 @@ class Recommender:
         if denominator == 0:
             return (0.0, 0)
 
-        return ((numerator / denominator), mutal_count)
+        ret = ((numerator / denominator), mutal_count)
+        # if ret[0] > 1.0:
+        #     print("here")
+
+        return ret
 
 
 
-    def top_user_matches(self, user, top=5):
+    def top_user_matches(self, user, top=5, sim_func = None):
 
         def sort_correlation(row):
             return row[1][0]
 
+        if sim_func is None:
+            sim_func = self.euclidean_distance
+
         start = time.time()
         user_ratings = self.user_ratings
-        scores = [(other, self.pearson_correlation(user, other)) for other in user_ratings if user != other]
+        scores = [(other, sim_func(user, other)) for other in user_ratings if user != other]
 
         # Sort the list
         scores.sort(key=sort_correlation, reverse=True)
@@ -250,7 +284,10 @@ class Recommender:
         return scores[0:top]
 
 
-    def get_recommendations(self, user, top=5):
+    def get_recommendations(self, user, top=5, sim_func = None ):
+        if sim_func is None:
+            sim_func = self.euclidean_distance
+
         totals = {}
         sim_sum = {}
         user_ratings = self.user_ratings
@@ -259,7 +296,7 @@ class Recommender:
         mutual = []
         for other in user_ratings:
             if other == user: continue
-            sim_score, mutual_count = self.pearson_correlation(user, other)
+            sim_score, mutual_count = sim_func(user, other)
             if sim_score <= 0.0: continue
             scores.append(sim_score)
             users.append(other)
@@ -275,21 +312,23 @@ class Recommender:
         avg_score = np.mean(scores) # C
         std_score = np.std(scores)
         count = sum(mutual[i] >= min_count for i in range(len(scores)))
-        while count < 10 and min_count > 0:
+        while count < 25 and min_count > 0:
             min_count = max(min_count - 1 , 0)
             count = sum(mutual[i] >= min_count for i in range(len(scores)))
 
+        vote_count = {}
         for i in range(len(users)):
             other = users[i]
             raw_score = scores[i] # R
             mutual_count = mutual[i] # v
             if mutual_count < min_count: continue
 
+            sim_score = raw_score
             # (v ÷ (v+m)) × R + (m ÷ (v+m)) × C
-            if max_count > min_count * 5:
-                sim_score = (mutual_count / (mutual_count+min_count)) * raw_score + (min_count / (mutual_count+min_count)) * avg_score
-            else:
-                sim_score = raw_score
+            # if max_count > min_count * 5:
+            #     sim_score = (mutual_count / (mutual_count+min_count)) * raw_score + (min_count / (mutual_count+min_count)) * avg_score
+            # else:
+            #     sim_score = raw_score
 
             # Drop people too different in tastes
             if sim_score < avg_score - (std_score * 1.0): continue
@@ -304,9 +343,10 @@ class Recommender:
                     # sum of similarities
                     sim_sum.setdefault(item,0)
                     sim_sum[item] += sim_score
+                    vote_count[item] = vote_count.setdefault(item,0) + 1
 
         # Create normalized list
-        rankings=[( round(total/sim_sum[item],2), item, self.game_id_to_name[item]) for item, total in totals.items()]
+        rankings=[( round(total/sim_sum[item],2), item, self.game_id_to_name[item], vote_count[item]) for item, total in totals.items() if vote_count[item] > float(len(vote_count)) * 0.05]
 
         # Return sorted list
         rankings.sort(reverse=True)
@@ -330,6 +370,15 @@ class Recommender:
         return next
 
     def add_game(self, user_id, game, rating):
+        # # Add a bit of random noise to avoid the problem of getting zero correlation if all numbers match
+        # if float(rating) < 9.9:
+        #     rating = float(rating) + random.uniform(-0.1, 0.1)
+        #     if rating > 10.0: rating = 10.0
+        # else:
+        #     rating = float(rating) + random.uniform(-0.1, 0.0)
+        #     if rating > 10.0: rating = 10.0
+
+
         if type(game) == int:
             self.user_ratings[user_id][game] = rating
         elif type(game) == str:
@@ -340,7 +389,7 @@ class Recommender:
 
 
 def main():
-    recommender = Recommender(reload=False, top_users=50000)
+    recommender = Recommender(reload=False, top_users=150000)
     # user_matches = recommender.top_user_matches(14791, top=20)
     # print(user_matches)
 
@@ -355,11 +404,13 @@ def main():
     fantasy_id = recommender.add_user()
     recommender.add_game(fantasy_id, 'Gloomhaven', 10)
     recommender.add_game(fantasy_id, 17226, 10)
-    recommender.add_game(fantasy_id, 66356, 9)
+    recommender.add_game(fantasy_id, 66356, 10)
+    print("User Matches:")
+    print(recommender.top_user_matches(fantasy_id))
     print("User's Games:")
     print(recommender.get_game_ratings_by_name(fantasy_id))
     print("Game Recommendations:")
-    recommendations = recommender.get_recommendations(fantasy_id, top=5)
+    recommendations = recommender.get_recommendations(fantasy_id, top=25)
     print(recommendations)
 
 
@@ -369,13 +420,15 @@ def main():
     print("Test Set: Lovecraft")
     lovecraft_id = recommender.add_user()
     # recommender.add_game(lovecraft_id, 205059, 10)
-    recommender.add_game(lovecraft_id, 'Elder Sign', 9)
+    recommender.add_game(lovecraft_id, 'Elder Sign', 10)
     recommender.add_game(lovecraft_id, 'Arkham Horror', 10)
     recommender.add_game(lovecraft_id, 83330, 10)
+    print("User Matches:")
+    print(recommender.top_user_matches(lovecraft_id))
     print("User's Games:")
     print(recommender.get_game_ratings_by_name(lovecraft_id))
     print("Game Recommendations:")
-    recommendations = recommender.get_recommendations(lovecraft_id, top=5)
+    recommendations = recommender.get_recommendations(lovecraft_id, top=25)
     print(recommendations)
 
     # Casual Gamer
@@ -385,11 +438,13 @@ def main():
     casual_id = recommender.add_user()
     recommender.add_game(casual_id, 'Chess', 10)
     recommender.add_game(casual_id, 'Poker', 10)
-    recommender.add_game(casual_id, 2397, 9)
+    recommender.add_game(casual_id, 2397, 10)
+    print("User Matches:")
+    print(recommender.top_user_matches(casual_id))
     print("User's Games:")
     print(recommender.get_game_ratings_by_name(casual_id))
     print("Game Recommendations:")
-    recommendations = recommender.get_recommendations(casual_id, top=5)
+    recommendations = recommender.get_recommendations(casual_id, top=25)
     print(recommendations)
 
 
