@@ -18,6 +18,7 @@ def get_pickled_list(list_name):
     return sl
 
 
+# noinspection PyBroadException
 def pickle_list(list_data, list_name):
     # file_name = os.path.dirname(__file__) + "\\" + str(list_name) + '.txt'
     file_name = list_name + '.pkl'
@@ -51,16 +52,17 @@ class GameDB:
         auth_plugin='mysql_native_password'
     )
 
-    def execute_sql(self, sql, all=True):
+    def execute_sql(self, sql, execute_all=True):
         if DEBUG:
             start = time.time()
             print(sql)
         mycursor = GameDB.mydb.cursor()
         mycursor.execute(sql)
-        if all:
+        if execute_all:
             results = mycursor.fetchall()
             if DEBUG:
                 end = time.time()
+                # noinspection PyUnboundLocalVariable
                 print(len(results),"rows returned in "+str(round(end-start,2))+" seconds")
             return results
         else:
@@ -72,7 +74,6 @@ class GameDB:
         sql = "SELECT user, game, rating FROM rating WHERE game in ("+games_str+") and user in ("+user_str+") ORDER BY user"
         game_ratings = self.execute_sql(sql)
         user_ratings = {}
-        count = 0
         for i in range(len(game_ratings)):
             # count += 1
             # if DEBUG and count % 10000 == 0:
@@ -177,10 +178,10 @@ class Recommender:
         game_id_to_name = {}
         game_name_to_id = {}
         for game in self.game_names:
-            id = game[0]
+            game_id = game[0]
             name = game[1]
-            game_id_to_name[id] = name
-            game_name_to_id[name] = id
+            game_id_to_name[game_id] = name
+            game_name_to_id[name] = game_id
 
         self.game_id_to_name = game_id_to_name
         self.game_name_to_id = game_name_to_id
@@ -238,12 +239,12 @@ class Recommender:
             return (0.0, 0)
 
         # Add up all ratings
-        sum1 = sum([user1_ratings[id] for id in mutal_ratings])
-        sum2 = sum([user2_ratings[id] for id in mutal_ratings])
+        sum1 = sum([user1_ratings[game_id] for game_id in mutal_ratings])
+        sum2 = sum([user2_ratings[game_id] for game_id in mutal_ratings])
 
         # Sum of Squares
-        sum_sq_1 = sum([user1_ratings[id]**2 for id in mutal_ratings])
-        sum_sq_2 = sum([user2_ratings[id]**2 for id in mutal_ratings])
+        sum_sq_1 = sum([user1_ratings[game_id]**2 for game_id in mutal_ratings])
+        sum_sq_2 = sum([user2_ratings[game_id]**2 for game_id in mutal_ratings])
 
         # Sum of the products
         product_sum = sum([user1_ratings[id] * user2_ratings[id] for id in mutal_ratings])
@@ -386,10 +387,10 @@ class Recommender:
 
     def add_user(self):
         user_ratings = self.user_ratings
-        id_list = [id for id in user_ratings]
-        next = max(id_list)
-        user_ratings[next] = {}
-        return next
+        id_list = [user_id for user_id in user_ratings]
+        next_id = max(id_list)
+        user_ratings[next_id] = {}
+        return next_id
 
     def add_game(self, user_id, game, rating):
         # # Add a bit of random noise to avoid the problem of getting zero correlation if all numbers match
@@ -404,8 +405,8 @@ class Recommender:
         if type(game) == int:
             self.user_ratings[user_id][game] = rating
         elif type(game) == str:
-            id = self.game_name_to_id[game]
-            self.user_ratings[user_id][id] = rating
+            game_id = self.game_name_to_id[game]
+            self.user_ratings[user_id][game_id] = rating
         else:
             raise Exception("'game' must be integer id or string name.")
 
