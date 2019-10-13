@@ -88,17 +88,17 @@ class GameDB:
 
     # Gets the top games that have at least some number of votes (required_votes) and returns them ordered by weighted rating
     # Numpy array returned is in this column order: Game ID, Game Name, Rating, # Votes, Weighted Rating
-    def get_top_games(self, required_votes):
+    def get_top_games(self, top_games):
         # Get average rating
-        sql = "SELECT avg(rating) FROM rating, (SELECT game.game as id, count(rating.rating) as votes FROM game, rating WHERE game.game = rating.game GROUP BY game.game  HAVING votes > "+str(required_votes)+" ORDER BY rating DESC) game_rating WHERE rating.game = game_rating.id"
+        sql = "SELECT avg(rating) FROM rating, (SELECT game.game as id, count(rating.rating) as votes FROM game, rating WHERE game.game = rating.game GROUP BY game.game ORDER BY rating DESC) game_rating WHERE rating.game = game_rating.id LIMIT "+str(top_games)
         c = self.execute_sql(sql)[0][0]
 
-        sql = "SELECT game.game, game.name, AVG(rating.rating) as rating, count(rating.rating) as votes FROM game, rating WHERE game.game = rating.game GROUP BY game.game HAVING votes > "+str(required_votes)+" ORDER BY rating DESC"
+        sql = "SELECT game.game, game.name, AVG(rating.rating) as rating, count(rating.rating) as votes FROM game, rating WHERE game.game = rating.game GROUP BY game.game ORDER BY votes DESC, rating DESC LIMIT "+str(top_games)
         result = self.execute_sql(sql)
         game_ratings = np.array(result, dtype=object)#dtype=([('id', int), ('name', '<U256'), ('raw_rating', float), ('votes', int)]))
 
         # (v ÷ (v+m)) × R + (m ÷ (v+m)) × C - from https://stats.stackexchange.com/questions/6418/rating-system-taking-account-of-number-of-votes
-        weighted_rating = (game_ratings[:,3:4] / (game_ratings[:,3:4]+required_votes)) * game_ratings[:,2:3].astype(float) + (required_votes / ((game_ratings[:,3:4])+required_votes)) * float(c)
+        weighted_rating = (game_ratings[:,3:4] / (game_ratings[:,3:4] + top_games)) * game_ratings[:, 2:3].astype(float) + (top_games / ((game_ratings[:, 3:4]) + top_games)) * float(c)
         game_ratings = np.hstack((game_ratings, weighted_rating))
         # Sort by weighted rating. Python, lamely, can't do a sort in numpy easily. But this trick worked: https://stackoverflow.com/questions/16486252/is-it-possible-to-use-argsort-in-descending-order
         game_ratings = game_ratings[(-game_ratings[:, 4]).argsort()]
@@ -140,14 +140,14 @@ class GameDB:
 
 class Recommender:
     db = GameDB()
-    def __init__(self, required_votes=5000, top_users=25000, reload=False):
+    def __init__(self, top_games=5000, num_users=100000, reload=False):
         # Try loading from pickle first unless asked not to
         fn_game_ids = "game_ids"
         fn_game_names = "game_names"
 
         if reload or not (file_exists(fn_game_ids) and file_exists(fn_game_names)):
             # load file from database
-            self.game_ids, self.game_names = Recommender.db.get_top_games(required_votes)
+            self.game_ids, self.game_names = Recommender.db.get_top_games(top_games)
             # pickle it for next time
             pickle_list(self.game_ids,fn_game_ids)
             pickle_list(self.game_names,fn_game_names)
@@ -158,7 +158,7 @@ class Recommender:
         file_name = "user_ids"
         if reload or not file_exists(file_name):
             # load file from database
-            self.user_ids = Recommender.db.get_users(top_users, self.game_ids)
+            self.user_ids = Recommender.db.get_users(num_users, self.game_ids)
             # pickle it for next time
             pickle_list(self.user_ids, file_name)
         else:
@@ -415,7 +415,7 @@ def print_recommendations(recommendations):
         print("#", i+1, "Predicted Rating:", recommendations[i][0], "Game:", recommendations[i][2])
 
 def main():
-    recommender = Recommender(reload=False, required_votes=3000, top_users=150000)
+    recommender = Recommender(reload=True, top_games=1000, num_users=150000)
     # user_matches = recommender.top_user_matches(14791, top=20)
     # print(user_matches)
 
