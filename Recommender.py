@@ -1,11 +1,11 @@
-import mysql.connector
-import sys
-import numpy as np
-import time
 import math
-import pickle
 import os
+import pickle
 import statistics
+import time
+
+import mysql.connector
+import numpy as np
 
 DEBUG = True
 
@@ -415,7 +415,7 @@ def print_recommendations(recommendations):
         print("#", i+1, "Predicted Rating:", recommendations[i][0], "Game:", recommendations[i][2])
 
 def main():
-    recommender = Recommender(reload=True, top_games=2000, num_users=150000)
+    recommender = Recommender(reload=False, top_games=2000, num_users=150000)
     # user_matches = recommender.top_user_matches(14791, top=20)
     # print(user_matches)
 
@@ -499,7 +499,7 @@ def main():
     print("")
     print("Test Set: Just One Game")
     other_id = recommender.add_user()
-    recommender.add_game(other_id, 199792, 10)
+    recommender.add_game(other_id, 'Mansions of Madness: Second Edition', 10)
     # print("User Matches:")
     # print(recommender.top_user_matches(casual_id))
     print("User's Games:")
