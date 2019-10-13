@@ -5,7 +5,7 @@ import time
 import math
 import pickle
 import os
-import random
+import statistics
 
 DEBUG = True
 
@@ -90,7 +90,7 @@ class GameDB:
     # Numpy array returned is in this column order: Game ID, Game Name, Rating, # Votes, Weighted Rating
     def get_top_games(self, required_votes):
         # Get average rating
-        sql = "SELECT avg(rating) FROM rating, (SELECT game.game as id, count(rating.rating) as votes FROM game, rating WHERE game.game = rating.game GROUP BY game.game  HAVING votes > 5000 ORDER BY rating DESC) game_rating WHERE rating.game = game_rating.id"
+        sql = "SELECT avg(rating) FROM rating, (SELECT game.game as id, count(rating.rating) as votes FROM game, rating WHERE game.game = rating.game GROUP BY game.game  HAVING votes > "+str(required_votes)+" ORDER BY rating DESC) game_rating WHERE rating.game = game_rating.id"
         c = self.execute_sql(sql)[0][0]
 
         sql = "SELECT game.game, game.name, AVG(rating.rating) as rating, count(rating.rating) as votes FROM game, rating WHERE game.game = rating.game GROUP BY game.game HAVING votes > "+str(required_votes)+" ORDER BY rating DESC"
@@ -120,7 +120,7 @@ class GameDB:
 
     # Get a list of distinct users in our list of top games
     def get_users(self, top_users=None, game_ids=None):
-        sql = "SELECT user FROM (SELECT distinct rating.user as user, count(*) as num_ratings FROM rating"
+        sql = "SELECT distinct user FROM (SELECT distinct rating.user as user, count(*) as num_ratings FROM rating"
 
         if game_ids is not None:
             games_str = ','.join(map(str, game_ids))
@@ -284,7 +284,7 @@ class Recommender:
         return scores[0:top]
 
 
-    def get_recommendations(self, user, top=5, min_users = 50, vote_threshold=0.05, sim_func = None):
+    def get_recommendations(self, user, top=5, min_users = 50, sim_func = None):
         if sim_func is None:
             sim_func = self.euclidean_distance
 
@@ -347,7 +347,11 @@ class Recommender:
                     vote_count[item] = vote_count.setdefault(item,0) + 1
 
         # Create normalized list
-        rankings=[[round(total/sim_sum[item],2), item, self.game_id_to_name[item], vote_count[item]] for item, total in totals.items() if vote_count[item] > float(len(vote_count)) * vote_threshold]
+        vote_count2 = [vote_count[item] for item in vote_count]
+        max_count = max(vote_count2)
+        threshold = min((statistics.median(vote_count2) + max_count)/2, len(vote_count)*0.05)
+
+        rankings=[[round(total/sim_sum[item],2), item, self.game_id_to_name[item], vote_count[item]] for item, total in totals.items() if vote_count[item] > float(threshold)]
 
         ratings = [rank[0] for rank in rankings] # R
         avg_rate = sum(ratings) / float(len(ratings)) # C
@@ -411,7 +415,7 @@ def print_recommendations(recommendations):
         print("#", i+1, "Predicted Rating:", recommendations[i][0], "Game:", recommendations[i][2])
 
 def main():
-    recommender = Recommender(reload=False, top_users=150000)
+    recommender = Recommender(reload=False, required_votes=3000, top_users=150000)
     # user_matches = recommender.top_user_matches(14791, top=20)
     # print(user_matches)
 
@@ -433,7 +437,7 @@ def main():
     print(recommender.get_game_ratings_by_name(fantasy_id))
     print("Game Recommendations:")
     recommendations = recommender.get_recommendations(fantasy_id, top=10)
-    # print(recommendations)
+    print(recommendations)
     print_recommendations((recommendations))
 
 
@@ -452,7 +456,7 @@ def main():
     print(recommender.get_game_ratings_by_name(lovecraft_id))
     print("Game Recommendations:")
     recommendations = recommender.get_recommendations(lovecraft_id, top=10)
-    # print(recommendations)
+    print(recommendations)
     print_recommendations((recommendations))
 
     # Strategy Game
@@ -469,7 +473,7 @@ def main():
     print(recommender.get_game_ratings_by_name(strategy_id))
     print("Game Recommendations:")
     recommendations = recommender.get_recommendations(strategy_id, top=10)
-    # print(recommendations)
+    print(recommendations)
     print_recommendations((recommendations))
 
 
@@ -487,20 +491,20 @@ def main():
     print(recommender.get_game_ratings_by_name(casual_id))
     print("Game Recommendations:")
     recommendations = recommender.get_recommendations(casual_id, top=10)
-    # print(recommendations)
+    print(recommendations)
     print_recommendations((recommendations))
 
-    # # Casual Game
-    # print("")
-    # print("")
-    # print("Test Set: Casual Gamer")
-    # other_id = recommender.add_user()
-    # recommender.add_game(other_id, 199792, 10)
-    # # print("User Matches:")
-    # # print(recommender.top_user_matches(casual_id))
-    # print("User's Games:")
-    # print(recommender.get_game_ratings_by_name(other_id))
-    # print("Game Recommendations:")
-    # recommendations = recommender.get_recommendations(other_id, top=10)
-    # # print(recommendations)
-    # print_recommendations((recommendations))
+    # Other
+    print("")
+    print("")
+    print("Test Set: Just One Game")
+    other_id = recommender.add_user()
+    recommender.add_game(other_id, 199792, 10)
+    # print("User Matches:")
+    # print(recommender.top_user_matches(casual_id))
+    print("User's Games:")
+    print(recommender.get_game_ratings_by_name(other_id))
+    print("Game Recommendations:")
+    recommendations = recommender.get_recommendations(other_id, top=10)
+    print(recommendations)
+    print_recommendations((recommendations))
