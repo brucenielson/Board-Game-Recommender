@@ -253,7 +253,7 @@ class Recommender:
             assert len(users) == len(scores)
 
         # Get mean and standard deviation of all scores we're looking at to use as cut off points because we don't want users too uncorrelated with our interests.
-        # TODO: This seems wrong to me. We should really take mean and std from the final set, not the full set.
+        # This seems wrong to me. We should really take mean and std from the final set, not the full set. But I tried that and the results didn't seem quite as good. Needs more research.
         mean_score = np.mean(scores)
         std_score = np.std(scores)
 
@@ -272,7 +272,7 @@ class Recommender:
             min_mutual = max(min_mutual - 1 , 0)
             user_count = sum(mutual[i] >= min_mutual for i in range(len(scores)))
 
-        # Get new set of scores, medians, standard deviation now that we know the exact users and ratings we intend to use.
+        # # Get new set of scores, medians, standard deviation now that we know the exact users and ratings we intend to use.
         # reduced_scores = [scores[i] for i in range(len(scores)) if mutual[i] >= min_mutual]
         # mean_score = np.mean(reduced_scores)
         # std_score = np.std(reduced_scores)
@@ -286,7 +286,6 @@ class Recommender:
             if mutual_count < min_mutual: continue
 
             # Drop people too different in tastes, i.e. more than one standard deviation below the mean score
-            # TODO: use revised averages
             if sim_score < mean_score - (std_score * 1.0): continue
 
             # For each user, loop over the games they've rated and track the sum of the scores as well as the number of votes cast
