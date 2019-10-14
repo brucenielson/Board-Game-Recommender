@@ -369,12 +369,6 @@ def print_recommendations(recommendations):
 
 def main():
     recommender = Recommender(reload=False, top_games=2000, num_users=150000)
-    # user_matches = recommender.top_user_matches(14791, top=20)
-    # print(user_matches)
-
-    # recommendations = recommender.get_recommendations(14791, top=25)
-    # print(recommendations)
-    # print(recommender.get_game_ratings_by_name(14791))
 
     # Test Set: Fantasy
     print("")
@@ -384,8 +378,6 @@ def main():
     recommender.add_game(fantasy_id, 'Gloomhaven', 10)
     recommender.add_game(fantasy_id, 17226, 10)
     recommender.add_game(fantasy_id, 66356, 10)
-    # print("User Matches:")
-    # print(recommender.top_user_matches(fantasy_id))
     print("User's Games:")
     print(recommender.get_game_ratings_by_name(fantasy_id))
     print("Game Recommendations:")
