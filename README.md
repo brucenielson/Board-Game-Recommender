@@ -34,3 +34,10 @@ Side note: this is a public git and the password to your database is available. 
 BitBucket where it can be made private (though I'm not sure how to use BitBucket with github desktop.)
 
 Or better yet, maybe we need to remove the password (and change yours) and then modify my code to accept a password.
+
+Also, the directory venv includes a python virtual environment. You may want to remove that and user your own.
+
+Oh, one more thing. test_recommender is a unit test. It's a bad unit test. It just checks to make sure my test sets are 
+still getting the results I expected. That way you can modify my code without breaking anything. However, any attempt to 
+actually improve the recommender will necessarily break the unit test, which makes it not a very good unit test. But I needed
+it for refactoring my code without breaking things. 
