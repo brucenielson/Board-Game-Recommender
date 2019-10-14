@@ -9,7 +9,7 @@ import numpy as np
 
 DEBUG = True
 
-
+# Pickle Functions
 def get_pickled_list(list_name):
     # f = open(os.path.dirname(__file__) + "\\" + list_name + '.txt')
     f = open(list_name + '.pkl', "rb")
@@ -18,7 +18,6 @@ def get_pickled_list(list_name):
     return sl
 
 
-# noinspection PyBroadException
 def pickle_list(list_data, list_name):
     # file_name = os.path.dirname(__file__) + "\\" + str(list_name) + '.txt'
     file_name = list_name + '.pkl'
@@ -40,7 +39,7 @@ def file_exists(list_name):
 
 
 
-
+# Database / SQL Class
 class GameDB:
 
     # Connect to the database and query a game.
@@ -142,13 +141,20 @@ class GameDB:
         return user_ids.flatten().tolist()
 
 
+# Main Recommonder Class
 class Recommender:
     db = GameDB()
-    def __init__(self, top_games=5000, num_users=100000, reload=False):
+    def __init__(self, top_games=2000, num_users=100000, reload=False):
+        # top_games is how many of the 2000 games to work with
+        # num_users is the number of users to use -- note: starting with those with fewest ratings but 5 or more ratings
+        # reload: If this flag is set to True, reload data from the database instead of from pickled files. However, if pickle files are missing, load from database regardless.
+
         # Try loading from pickle first unless asked not to
+        # Pickle file names
         fn_game_ids = "game_ids"
         fn_game_names = "game_names"
 
+        # Basic pattern I reuse here: if reload flag is set or if file doesn't exist, then load data via sql. Otherise use pickle file to get data.
         if reload or not (file_exists(fn_game_ids) and file_exists(fn_game_names)):
             # load file from database
             self.game_ids, self.game_names = Recommender.db.get_top_games(top_games)
@@ -190,6 +196,8 @@ class Recommender:
         self.game_name_to_id = game_name_to_id
 
 
+    # Given two users, determine the euclidean distance they are from each other and then return that inverted
+    # so that users closer together get higher score and users farther apart get lower scores
     def euclidean_distance(self, user_id1, user_id2):
         # Get the list of mutual items
         user1_ratings = self.user_ratings[user_id1]
@@ -213,150 +221,87 @@ class Recommender:
         return ret
 
 
-
-
-
-    def pearson_correlation(self, user_id1, user_id2):
-        # Get ratings for each user
-        if DEBUG:
-            if user_id1 not in self.user_ratings:
-                print("ERROR!")
-                print(self.user_ratings)
-
-            if user_id1 not in self.user_ratings:
-                print("ERROR!")
-                print(self.user_ratings)
-
-        user1_ratings = self.user_ratings[user_id1]
-        user2_ratings = self.user_ratings[user_id2]
-
-        # Create list of mutual ratings
-        mutal_ratings = {}
-        for game_id in user1_ratings:
-            if game_id in user2_ratings:
-                mutal_ratings[game_id] = True
-
-        # if nothing in common, correlation is 0.0
-        mutal_count = len(mutal_ratings)
-        if mutal_count == 0:
-            return 0.0, 0
-
-        # Add up all ratings
-        sum1 = sum([user1_ratings[game_id] for game_id in mutal_ratings])
-        sum2 = sum([user2_ratings[game_id] for game_id in mutal_ratings])
-
-        # Sum of Squares
-        sum_sq_1 = sum([user1_ratings[game_id]**2 for game_id in mutal_ratings])
-        sum_sq_2 = sum([user2_ratings[game_id]**2 for game_id in mutal_ratings])
-
-        # Sum of the products
-        product_sum = sum([user1_ratings[game_id] * user2_ratings[game_id] for game_id in mutal_ratings])
-
-        # Calculate Pearson score
-        numerator = product_sum-(sum1*sum2/mutal_count)
-        denominator = math.sqrt( (sum_sq_1 - (sum1**2)/mutal_count) * (sum_sq_2 - (sum2**2)/mutal_count) )
-
-        if denominator == 0:
-            return 0.0, 0
-
-        ret = ((numerator / denominator), mutal_count)
-        # if ret[0] > 1.0:
-        #     print("here")
-
-        return ret
-
-
-
-    def top_user_matches(self, user, top=5, sim_func = None):
-
-        def sort_correlation(row):
-            return row[1][0]
-
+    # Given a specific user, get recommendations for them.
+    def get_recommendations(self, user_id, top=5, min_users = 50, sim_func = None):
+        # user_id is the id of the user we want to get recommendations for. You must first create a user using the other functions.
+        # top = number of recommendations to return
+        # min_users = the minimum number of users we want to base our recommendations on. If less than this, it will expand the search until it finds enough.
+        # You may pass your own sim_function or it will default to euclidean distance
         if sim_func is None:
             sim_func = self.euclidean_distance
 
-        start = time.time()
-        user_ratings = self.user_ratings
-        scores = [(other, sim_func(user, other)) for other in user_ratings if user != other]
-
-        # Sort the list
-        scores.sort(key=sort_correlation, reverse=True)
-        if DEBUG:
-            end = time.time()
-            print("Found matches in "+str(round(end-start, 2))+" seconds")
-
-        return scores[0:top]
-
-
-    def get_recommendations(self, user, top=5, min_users = 50, sim_func = None):
-        if sim_func is None:
-            sim_func = self.euclidean_distance
-
+        # Start lists and dictionaries we'll use
         totals = {}
         sim_sum = {}
         user_ratings = self.user_ratings
         scores = []
         users = []
         mutual = []
-        for other in user_ratings:
-            if other == user: continue
-            sim_score, mutual_count = sim_func(user, other)
+
+        # Create a list of mutual rated games, i.e. games that user_id and user2 both rated.
+        for user2 in user_ratings:
+            if user2 == user_id: continue
+            sim_score, mutual_count = sim_func(user_id, user2)
             if sim_score <= 0.0: continue
             scores.append(sim_score)
-            users.append(other)
+            users.append(user2)
             mutual.append(mutual_count)
 
         if DEBUG:
             assert len(users) == len(scores)
 
-        # Determine values for weighted score
-        max_mutual = max(mutual) # m
+        # Determine the minimum number of mutual games in the data set that we accept
+        # We ideally want 5 matches, but if the user has less than 5 then go with the minimum number of matches as a first try.
+        max_mutual = max(mutual)
         min_mutual = min(max_mutual, 5)
         if DEBUG:
             print("min votes", min_mutual, "max", max_mutual)
-        avg_score = np.mean(scores) # C
+        # Get mean and standard deviation of all scores we're looking at to use as cut off points because we don't want users too uncorrelated with our interests.
+        # TODO: This seems wrong to me. We should really take mean and std from the final set, not the full set.
+        mean_score = np.mean(scores)
         std_score = np.std(scores)
+        # How many users in our database do in fact
         user_count = sum(mutual[i] >= min_mutual for i in range(len(users)))
+        # See if the number of users with this number of mutual matched ratings is enough to fulfill the minimum.
+        # If not, then reduce requirement by 1 and repeat until we find enough.
         while user_count < min_users and min_mutual > 0:
             min_mutual = max(min_mutual - 1 , 0)
             user_count = sum(mutual[i] >= min_mutual for i in range(len(scores)))
 
         vote_count = {}
+        # Now that we have a list of users with the most possible mutually matching ratings, but enough to fufill the minimum, loop over them and do the math
         for i in range(len(users)):
-            other = users[i]
-            raw_score = scores[i] # R
+            user2 = users[i]
+            sim_score = scores[i] # R
             mutual_count = mutual[i] # v
             if mutual_count < min_mutual: continue
 
-            sim_score = raw_score
-            # (v ÷ (v+m)) × R + (m ÷ (v+m)) × C
-            # if max_count > min_count * 5:
-            #     sim_score = (mutual_count / (mutual_count+min_count)) * raw_score + (min_count / (mutual_count+min_count)) * avg_score
-            # else:
-            #     sim_score = raw_score
+            # Drop people too different in tastes, i.e. more than one standard deviation below the mean score
+            # TODO: use revised averages
+            if sim_score < mean_score - (std_score * 1.0): continue
 
-            # Drop people too different in tastes
-            if sim_score < avg_score - (std_score * 1.0): continue
-
-            for item in user_ratings[other]:
-
+            # For each user, loop over the games they've rated and track the sum of the scores as well as the number of votes cast
+            for game_id in user_ratings[user2]:
                 # Only score items I haven't yet
-                if item not in user_ratings[user]:
+                if game_id not in user_ratings[user_id]:
                     # Similarity * Score
-                    totals.setdefault(item,0)
-                    totals[item]+=user_ratings[other][item]*sim_score
+                    totals.setdefault(game_id,0)
+                    totals[game_id]+=user_ratings[user2][game_id]*sim_score
                     # sum of similarities
-                    sim_sum.setdefault(item,0)
-                    sim_sum[item] += sim_score
-                    vote_count[item] = vote_count.setdefault(item,0) + 1
+                    sim_sum.setdefault(game_id,0)
+                    sim_sum[game_id] += sim_score
+                    vote_count[game_id] = vote_count.setdefault(game_id,0) + 1
 
-        # Create normalized list
+        # Create an indexed list of votes counts (previously a dictionary) and use that to get a max_count of votes,
+        # and a threshold of the number of counts needed to be included.
         vote_count2 = [vote_count[item] for item in vote_count]
         max_count = max(vote_count2)
         threshold = min((statistics.median(vote_count2) + max_count)/2, len(vote_count)*0.05)
 
+        # Create normalized list
         rankings=[[round(total/sim_sum[item],2), item, self.game_id_to_name[item], vote_count[item]] for item, total in totals.items() if vote_count[item] > float(threshold)]
 
+        # Weight based on number of votes so that games with more votes are normalized against games with fewer votes
         ratings = [rank[0] for rank in rankings] # R
         avg_rate = sum(ratings) / float(len(ratings)) # C
         votes = [rank[3] for rank in rankings]
@@ -379,15 +324,17 @@ class Recommender:
         return rankings[0:top]
 
 
-    def get_game_ratings_by_name(self, user):
+    # Given a user_id, return a list of game ratings that have names of games rather than game_id
+    def get_game_ratings_by_name(self, user_id):
         game_ratings = {}
-        for game_id in self.user_ratings[user]:
+        for game_id in self.user_ratings[user_id]:
             name = self.game_id_to_name[game_id]
-            game_ratings[name] = self.user_ratings[user][game_id]
+            game_ratings[name] = self.user_ratings[user_id][game_id]
 
         return game_ratings
 
 
+    # Call this method to add an empty user into the Recommender class. The new id is returned for use with other functions.
     def add_user(self):
         user_ratings = self.user_ratings
         id_list = [user_id for user_id in user_ratings]
@@ -395,28 +342,22 @@ class Recommender:
         user_ratings[next_id] = {}
         return next_id
 
-    def add_game(self, user_id, game, rating):
-        # # Add a bit of random noise to avoid the problem of getting zero correlation if all numbers match
-        # if float(rating) < 9.9:
-        #     rating = float(rating) + random.uniform(-0.1, 0.1)
-        #     if rating > 10.0: rating = 10.0
-        # else:
-        #     rating = float(rating) + random.uniform(-0.1, 0.0)
-        #     if rating > 10.0: rating = 10.0
-
-
-        if type(game) == int:
-            self.user_ratings[user_id][game] = rating
-        elif type(game) == str:
-            game_id = self.game_name_to_id[game]
+    # Given a user_id, and a game_id, and a rating, enter this into our dictionary of game ratings.
+    def add_game(self, user_id, game_id, rating):
+        if type(game_id) == int:
+            self.user_ratings[user_id][game_id] = rating
+        elif type(game_id) == str:
+            game_id = self.game_name_to_id[game_id]
             self.user_ratings[user_id][game_id] = rating
         else:
             raise Exception("'game' must be integer id or string name.")
 
 
+# Finally, a function to print out the recommendations returned. Useful for debugging, but not for actual web use.
 def print_recommendations(recommendations):
     for i in range(len(recommendations)):
         print("#", i+1, "Predicted Rating:", recommendations[i][0], "Game:", recommendations[i][2])
+
 
 def main():
     recommender = Recommender(reload=False, top_games=2000, num_users=150000)
