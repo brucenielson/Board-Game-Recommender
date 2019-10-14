@@ -22,6 +22,7 @@ def get_pickled_list(list_name):
 def pickle_list(list_data, list_name):
     # file_name = os.path.dirname(__file__) + "\\" + str(list_name) + '.txt'
     file_name = list_name + '.pkl'
+    # noinspection PyPep8
     try:
         os.remove(file_name)
     except:
@@ -52,7 +53,8 @@ class GameDB:
         auth_plugin='mysql_native_password'
     )
 
-    def execute_sql(self, sql, execute_all=True):
+    @staticmethod
+    def execute_sql(sql, execute_all=True):
         if DEBUG:
             start = time.time()
             print(sql)
@@ -67,6 +69,7 @@ class GameDB:
             return results
         else:
             return mycursor
+
 
     def get_ratings(self, game_ids, user_ids):
         games_str = ','.join(map(str, game_ids))
@@ -201,7 +204,7 @@ class Recommender:
         # if nothing in common, correlation is 0.0
         mutal_count = len(mutal_ratings)
         if mutal_count == 0:
-            return (0.0, 0)
+            return 0.0, 0
 
         # Add up the squares of all the differences
         sum_of_squares = sum([ (user1_ratings[game_id] - user2_ratings[game_id])**2.0 for game_id in mutal_ratings] )
@@ -236,7 +239,7 @@ class Recommender:
         # if nothing in common, correlation is 0.0
         mutal_count = len(mutal_ratings)
         if mutal_count == 0:
-            return (0.0, 0)
+            return 0.0, 0
 
         # Add up all ratings
         sum1 = sum([user1_ratings[game_id] for game_id in mutal_ratings])
@@ -247,14 +250,14 @@ class Recommender:
         sum_sq_2 = sum([user2_ratings[game_id]**2 for game_id in mutal_ratings])
 
         # Sum of the products
-        product_sum = sum([user1_ratings[id] * user2_ratings[id] for id in mutal_ratings])
+        product_sum = sum([user1_ratings[game_id] * user2_ratings[game_id] for game_id in mutal_ratings])
 
         # Calculate Pearson score
         numerator = product_sum-(sum1*sum2/mutal_count)
         denominator = math.sqrt( (sum_sq_1 - (sum1**2)/mutal_count) * (sum_sq_2 - (sum2**2)/mutal_count) )
 
         if denominator == 0:
-            return (0.0, 0)
+            return 0.0, 0
 
         ret = ((numerator / denominator), mutal_count)
         # if ret[0] > 1.0:
@@ -439,7 +442,7 @@ def main():
     print("Game Recommendations:")
     recommendations = recommender.get_recommendations(fantasy_id, top=10)
     print(recommendations)
-    print_recommendations((recommendations))
+    print_recommendations(recommendations)
 
 
     # Test Set: Lovecraft
@@ -458,7 +461,7 @@ def main():
     print("Game Recommendations:")
     recommendations = recommender.get_recommendations(lovecraft_id, top=10)
     print(recommendations)
-    print_recommendations((recommendations))
+    print_recommendations(recommendations)
 
     # Strategy Game
     print("")
@@ -475,7 +478,7 @@ def main():
     print("Game Recommendations:")
     recommendations = recommender.get_recommendations(strategy_id, top=10)
     print(recommendations)
-    print_recommendations((recommendations))
+    print_recommendations(recommendations)
 
 
     # Casual Game
@@ -493,7 +496,7 @@ def main():
     print("Game Recommendations:")
     recommendations = recommender.get_recommendations(casual_id, top=10)
     print(recommendations)
-    print_recommendations((recommendations))
+    print_recommendations(recommendations)
 
     # Other
     print("")
@@ -508,4 +511,4 @@ def main():
     print("Game Recommendations:")
     recommendations = recommender.get_recommendations(other_id, top=10)
     print(recommendations)
-    print_recommendations((recommendations))
+    print_recommendations(recommendations)
