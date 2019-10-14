@@ -7,7 +7,7 @@ import time
 import mysql.connector
 import numpy as np
 
-DEBUG = True
+DEBUG = False
 
 # Pickle Functions
 def get_pickled_list(list_name):
@@ -241,8 +241,10 @@ class Recommender:
         # Create a list of mutual rated games, i.e. games that user_id and user2 both rated.
         for user2 in user_ratings:
             if user2 == user_id: continue
+            # Get similarity score using our prefered similarity function
             sim_score, mutual_count = sim_func(user_id, user2)
             if sim_score <= 0.0: continue
+            # Creating 3 indexed lists: scores, users, number of mutual ratings
             scores.append(sim_score)
             users.append(user2)
             mutual.append(mutual_count)
@@ -250,23 +252,30 @@ class Recommender:
         if DEBUG:
             assert len(users) == len(scores)
 
+        # Get mean and standard deviation of all scores we're looking at to use as cut off points because we don't want users too uncorrelated with our interests.
+        # TODO: This seems wrong to me. We should really take mean and std from the final set, not the full set.
+        mean_score = np.mean(scores)
+        std_score = np.std(scores)
+
         # Determine the minimum number of mutual games in the data set that we accept
         # We ideally want 5 matches, but if the user has less than 5 then go with the minimum number of matches as a first try.
         max_mutual = max(mutual)
         min_mutual = min(max_mutual, 5)
         if DEBUG:
             print("min votes", min_mutual, "max", max_mutual)
-        # Get mean and standard deviation of all scores we're looking at to use as cut off points because we don't want users too uncorrelated with our interests.
-        # TODO: This seems wrong to me. We should really take mean and std from the final set, not the full set.
-        mean_score = np.mean(scores)
-        std_score = np.std(scores)
-        # How many users in our database do in fact
+
+        # How many users in our database do in fact have all the same ratings (up to 5) as we do?
         user_count = sum(mutual[i] >= min_mutual for i in range(len(users)))
         # See if the number of users with this number of mutual matched ratings is enough to fulfill the minimum.
         # If not, then reduce requirement by 1 and repeat until we find enough.
         while user_count < min_users and min_mutual > 0:
             min_mutual = max(min_mutual - 1 , 0)
             user_count = sum(mutual[i] >= min_mutual for i in range(len(scores)))
+
+        # Get new set of scores, medians, standard deviation now that we know the exact users and ratings we intend to use.
+        # reduced_scores = [scores[i] for i in range(len(scores)) if mutual[i] >= min_mutual]
+        # mean_score = np.mean(reduced_scores)
+        # std_score = np.std(reduced_scores)
 
         vote_count = {}
         # Now that we have a list of users with the most possible mutually matching ratings, but enough to fufill the minimum, loop over them and do the math
