@@ -1,0 +1,1 @@
+SELECT * FROM (SELECT game.game as id FROM game WHERE min_age < 13 AND min_playtime < 30) as first UNION DISTINCT (SELECT game.game as id FROM game WHERE game.name = 'Gloomhaven' OR game.game = 17226 OR game.game = 66356) LIMIT 2000

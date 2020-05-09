@@ -42,15 +42,15 @@ def file_exists(list_name):
 # Database / SQL Class
 class GameDB:
 
-    # Connect to the database and query a game.
-    # Make class variable
-    mydb = mysql.connector.connect(
-        host="dallas113.arvixeshared.com",
-        user="nikkala_genie",
-        passwd="RepMjhaqfM9y58m",
-        database="nikkala_boardgamegenie",
-        auth_plugin='mysql_native_password'
-    )
+    # # Connect to the database and query a game.
+    # # Make class variable
+    # mydb = mysql.connector.connect(
+    #     host="dallas113.arvixeshared.com",
+    #     user="nikkala_genie",
+    #     passwd="RepMjhaqfM9y58m",
+    #     database="nikkala_boardgamegenie",
+    #     auth_plugin='mysql_native_password'
+    # )
 
     @staticmethod
     def execute_sql(sql, execute_all=True):
@@ -143,7 +143,7 @@ class GameDB:
 
 # Main Recommonder Class
 class Recommender:
-    db = GameDB()
+    # db = GameDB()
     def __init__(self, top_games=2000, num_users=100000, reload=False):
         # top_games is how many of the 2000 games to work with
         # num_users is the number of users to use -- note: starting with those with fewest ratings but 5 or more ratings
@@ -438,7 +438,9 @@ def main():
     print("")
     print("Test Set: Just One Game")
     other_id = recommender.add_user()
-    recommender.add_game(other_id, 'Mansions of Madness: Second Edition', 10)
+    recommender.add_game(other_id, 'Taboo', 10)
+    recommender.add_game(other_id, 'Telestrations', 10)
+    recommender.add_game(other_id, 'Scrabble', 10)
     print("User's Games:")
     print(recommender.get_game_ratings_by_name(other_id))
     print("Game Recommendations:")

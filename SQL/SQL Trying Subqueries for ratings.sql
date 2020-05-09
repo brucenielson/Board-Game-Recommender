@@ -1,0 +1,1 @@
+SELECT user, game, rating FROM rating WHERE user in (SELECT distinct user FROM (SELECT distinct rating.user as user, count(*) as num_ratings FROM rating GROUP BY rating.user ORDER BY num_ratings ASC, rating.user ASC) rating_counts WHERE num_ratings >= 5) ORDER BY user
